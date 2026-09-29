@@ -3,7 +3,7 @@
   "id": "xpore",
   "version": "${version}",
   "name": "Experience Ore",
-  "description": "Experience ores with green 3D crystals, fixed orbital trails and selective emissive maps.",
+  "description": "Adds the Experience Ore, a block that releases experience points when mined.",
   "authors": [
     "GalaxyNoxus"
   ],
