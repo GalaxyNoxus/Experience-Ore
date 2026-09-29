@@ -1,0 +1,7 @@
+{
+  "minXpDrop": 3,
+  "maxXpDrop": 8,
+  "fortuneMultiplier": 1.5,
+  "oreGenerationRarity": 2,
+  "enableDeepslateVariant": true
+}

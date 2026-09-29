@@ -1,0 +1,84 @@
+plugins {
+    id 'dev.kikugie.loom-back-compat'
+    id 'maven-publish'
+}
+
+version = "${project.mod_version}+mc${project.minecraft_version}"
+base { archivesName = project.archives_base_name }
+
+def targetJavaVersion = project.java_version.toInteger()
+def modMetadata = [
+    version: project.mod_version,
+    minecraft_dependency: project.minecraft_dependency,
+    loader_version: project.loader_version,
+    fabric_version: project.fabric_version,
+    java_version: project.java_version
+]
+
+repositories { mavenCentral() }
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    if (!project.loomx.isUnobfuscated()) {
+        mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    }
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+loom {
+    splitEnvironmentSourceSets()
+    mods {
+        xpore {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+}
+
+processResources {
+    if (project.minecraft_version == '26.3') {
+        exclude 'data/xpore/worldgen/configured_feature/**'
+    }
+    inputs.properties modMetadata
+    filesMatching('fabric.mod.json') { expand modMetadata }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = targetJavaVersion
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
+
+tasks.register('configCheck', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.galaxynoxus.xpore.ConfigCheck'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+}
+
+tasks.named('check') { dependsOn tasks.named('configCheck') }
+
+tasks.register('buildAndCollect', Copy) {
+    group = 'build'
+    dependsOn tasks.named('build')
+    from(project.loomx.modJar.flatMap { it.archiveFile })
+    from(project.loomx.modSourcesJar.flatMap { it.archiveFile })
+    into(rootProject.layout.buildDirectory.dir("libs/${project.mod_version}"))
+}
+
+tasks.named('test') {
+    enabled = false
+}

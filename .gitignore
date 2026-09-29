@@ -1,0 +1,10 @@
+.gradle/
+.stonecutter/
+build/
+versions/*/build/
+versions/*/.gradle/
+versions/*/run/
+run/
+.idea/
+*.iml
+__pycache__/

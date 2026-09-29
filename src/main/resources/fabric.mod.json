@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "xpore",
+  "version": "${version}",
+  "name": "Experience Ore",
+  "description": "Experience ores with green 3D crystals, fixed orbital trails and selective emissive maps.",
+  "authors": [
+    "GalaxyNoxus"
+  ],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.galaxynoxus.xpore.XpOreMod"
+    ],
+    "client": [
+      "dev.galaxynoxus.xpore.XpOreClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_dependency}",
+    "java": ">=${java_version}",
+    "fabric-api": ">=${fabric_version}"
+  },
+  "icon": "assets/xpore/icon.png"
+}

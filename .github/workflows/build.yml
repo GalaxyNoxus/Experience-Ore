@@ -1,0 +1,40 @@
+name: Build Experience Ore
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.matrix.outputs.versions }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        run: echo "versions=$(jq -c . targets.json)" >> "$GITHUB_OUTPUT"
+  build:
+    needs: targets
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        minecraft: ${{ fromJSON(needs.targets.outputs.versions) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build Minecraft ${{ matrix.minecraft }}
+        run: bash ./gradlew --no-daemon :${{ matrix.minecraft }}:buildAndCollect
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpore-mc${{ matrix.minecraft }}
+          path: build/libs/1.0.0/*.jar
+          if-no-files-found: error
