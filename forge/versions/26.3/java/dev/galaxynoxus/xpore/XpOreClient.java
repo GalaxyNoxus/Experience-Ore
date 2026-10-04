@@ -1,6 +1,7 @@
 package dev.galaxynoxus.xpore;
 
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
@@ -12,5 +13,9 @@ public final class XpOreClient {
     public static void registerParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.XP_AURA.get(), XpAuraParticle.Factory::new);
         event.registerSpriteSet(ModParticles.XP_TRAIL.get(), XpTrailParticle.Factory::new);
+    }
+    @SubscribeEvent
+    public static void creativeTab(BuildCreativeModeTabContentsEvent event) {
+        ModItems.creativeTab(event);
     }
 }

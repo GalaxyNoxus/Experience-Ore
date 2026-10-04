@@ -1,7 +1,6 @@
 package dev.galaxynoxus.xpore;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
@@ -16,6 +15,5 @@ public final class XpOreMod {
         ModItems.ITEMS.register(bus);
         ModParticles.PARTICLES.register(bus);
         ModWorldGeneration.PLACEMENT_TYPES.register(bus);
-        BuildCreativeModeTabContentsEvent.getBus(bus).addListener(ModItems::creativeTab);
     }
 }
