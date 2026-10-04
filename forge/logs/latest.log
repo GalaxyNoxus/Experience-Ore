@@ -1,0 +1,8 @@
+[03Oct2026 08:49:07.314] [main/WARN] [xpore/config/]: Valores fora dos limites de xpore.json foram corrigidos.
+[03Oct2026 08:49:07.319] [main/ERROR] [xpore/config/]: Config inválida/ilegível em /tmp/xpore-config-check-7803393877608996084/defaults/xpore.json. Usando defaults.
+java.lang.IllegalArgumentException: minXpDrop precisa ser um número.
+	at dev.galaxynoxus.xpore.XpOreConfig.requireNumber(XpOreConfig.java:100) ~[main/:?]
+	at dev.galaxynoxus.xpore.XpOreConfig.readInt(XpOreConfig.java:106) ~[main/:?]
+	at dev.galaxynoxus.xpore.XpOreConfig.load(XpOreConfig.java:52) ~[main/:?]
+	at dev.galaxynoxus.xpore.ConfigCheck.main(ConfigCheck.java:52) ~[test/:?]
+[03Oct2026 08:49:07.331] [main/WARN] [xpore/config/]: Config original preservada em /tmp/xpore-config-check-7803393877608996084/defaults/xpore.json.invalid-1791042547329.bak

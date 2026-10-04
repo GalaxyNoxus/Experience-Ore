@@ -55,7 +55,7 @@ public final class OrbitMath {
     }
 
     public static float fadeFactor(int ticks) {
-        float t = Math.clamp((float) ticks / FADE_TICKS, 0.0F, 1.0F);
+        float t = Math.max(0.0F, Math.min(1.0F, (float) ticks / FADE_TICKS));
         return 1.0F - t * t * (3.0F - 2.0F * t);
     }
 

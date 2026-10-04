@@ -1,0 +1,111 @@
+plugins {
+    id 'java-library'
+    id 'net.minecraftforge.gradle' version '7.0.29'
+    id 'net.minecraftforge.renamer' version '1.1.2'
+}
+
+def shared = new Properties()
+file('../gradle.properties').withInputStream { shared.load(it) }
+def targets = new groovy.json.JsonSlurper().parse(file('../forge-targets.json'))
+def requested = providers.gradleProperty('minecraftVersion').getOrElse('1.21.1')
+def target = targets.find { it.minecraft == requested }
+if (target == null) { throw new GradleException("Unsupported Forge target: ${requested}. See forge-targets.json.") }
+def forgeMajor = target.forge.tokenize('.')[0].toInteger()
+group = shared.maven_group
+version = shared.mod_version
+base { archivesName = shared.archives_base_name }
+layout.buildDirectory = file("build/${target.minecraft}")
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(target.java as int)
+    withSourcesJar()
+}
+minecraft {
+    if (target.java != 25) { mappings channel: 'official', version: target.minecraft }
+    runs {
+        configureEach { workingDir = layout.projectDirectory.dir("run/${target.minecraft}") }
+        register('client')
+        register('server') { args '--nogui' }
+    }
+}
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${target.minecraft}-${target.forge}")
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+    testImplementation 'org.slf4j:slf4j-api:2.0.9'
+}
+sourceSets {
+    main {
+        java {
+            srcDir '../src/main/java'
+            srcDir "versions/${target.minecraft}/java"
+            exclude { element -> element.file.canonicalPath == file('../src/main/java/dev/galaxynoxus/xpore/XpOreConfig.java').canonicalPath }
+        }
+        resources.srcDir "versions/${target.minecraft}/resources"
+    }
+    test { java.srcDir '../src/test/java' }
+}
+processResources {
+    from('../src/main/resources') {
+        exclude 'fabric.mod.json'
+        if (target.minecraft == '26.3') { exclude 'data/xpore/worldgen/configured_feature/**' }
+    }
+    from("../versions/${target.minecraft}/src/main/resources")
+    if (target.minecraft.startsWith('1.20')) {
+        eachFile { details -> details.path = details.path.replace('/loot_table/', '/loot_tables/').replace('/tags/block/', '/tags/blocks/') }
+    }
+    inputs.properties(mod_version: shared.mod_version, minecraft_version: target.minecraft, forge_version: target.forge, forge_major: forgeMajor)
+    filesMatching('META-INF/mods.toml') {
+        expand mod_version: shared.mod_version, minecraft_version: target.minecraft, forge_version: target.forge, forge_major: forgeMajor, forge_next: forgeMajor + 1
+    }
+    doLast {
+        ['experience_ore', 'deepslate_experience_ore'].each { name ->
+            def modelFile = new File(destinationDir, "assets/xpore/models/block/${name}.json")
+            def model = new groovy.json.JsonSlurper().parse(modelFile)
+            model.render_type = 'minecraft:cutout'
+            modelFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(model))
+        }
+        def placedFile = new File(destinationDir, 'data/xpore/worldgen/placed_feature/deepslate_experience_ore.json')
+        def placed = new groovy.json.JsonSlurper().parse(placedFile)
+        placed.placement.find { it.type == 'xpore:config_rarity' }.deepslate = true
+        placedFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(placed))
+    }
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = target.java as int
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    archiveVersion = "${shared.mod_version}+mc${target.minecraft}-forge"
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+jar { from('../LICENSE') { rename { 'LICENSE_xp-ore' } } }
+def installableJar = tasks.named('jar')
+if (target.java == 17) {
+    renamer.mappings.from minecraft.dependency.toSrgFile
+    installableJar = renamer.classes(tasks.named('jar', Jar)) {
+        map.from minecraft.dependency.toSrgFile
+        archiveClassifier = ''
+        output = layout.buildDirectory.file("production/${shared.archives_base_name}-${shared.mod_version}+mc${target.minecraft}-forge.jar")
+    }
+    tasks.named('build') { dependsOn installableJar }
+}
+tasks.register('configCheck', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.galaxynoxus.xpore.ConfigCheck'
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(target.java as int) }
+}
+tasks.named('check') { dependsOn tasks.named('configCheck') }
+tasks.named('test') { enabled = false }
+tasks.register('buildAndCollect', Copy) {
+    group = 'build'
+    dependsOn tasks.named('build'), installableJar
+    from(installableJar.flatMap { target.java == 17 ? it.output : it.archiveFile })
+    into(file("../build/raw/forge/${target.minecraft}"))
+}

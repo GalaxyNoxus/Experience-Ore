@@ -1,0 +1,13 @@
+{
+  "pack": {
+    "description": "Experience Ore resources",
+    "min_format": [
+      69,
+      0
+    ],
+    "max_format": [
+      88,
+      0
+    ]
+  }
+}

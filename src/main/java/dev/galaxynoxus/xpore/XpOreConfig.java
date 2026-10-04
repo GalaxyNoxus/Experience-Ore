@@ -109,11 +109,11 @@ public final class XpOreConfig {
     private boolean normalize() {
         int oldMin = minXpDrop, oldMax = maxXpDrop, oldRarity = oreGenerationRarity;
         double oldMultiplier = fortuneMultiplier;
-        minXpDrop = Math.clamp(minXpDrop, 0, 10_000);
-        maxXpDrop = Math.clamp(maxXpDrop, minXpDrop, 10_000);
-        oreGenerationRarity = Math.clamp(oreGenerationRarity, 1, 10_000);
+        minXpDrop = Math.max(0, Math.min(10_000, minXpDrop));
+        maxXpDrop = Math.max(minXpDrop, Math.min(10_000, maxXpDrop));
+        oreGenerationRarity = Math.max(1, Math.min(10_000, oreGenerationRarity));
         fortuneMultiplier = Double.isFinite(fortuneMultiplier)
-                ? Math.clamp(fortuneMultiplier, 1.0, 10.0) : 1.5;
+                ? Math.max(1.0, Math.min(10.0, fortuneMultiplier)) : 1.5;
         boolean changed = oldMin != minXpDrop || oldMax != maxXpDrop
                 || oldRarity != oreGenerationRarity || oldMultiplier != fortuneMultiplier;
         if (changed) { LOGGER.warn("Valores fora dos limites de xpore.json foram corrigidos."); }

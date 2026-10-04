@@ -40,6 +40,9 @@ processResources {
     if (project.minecraft_version == '26.3') {
         exclude 'data/xpore/worldgen/configured_feature/**'
     }
+    if (project.minecraft_version.startsWith('1.20')) {
+        eachFile { details -> details.path = details.path.replace('/loot_table/', '/loot_tables/').replace('/tags/block/', '/tags/blocks/') }
+    }
     inputs.properties modMetadata
     filesMatching('fabric.mod.json') { expand modMetadata }
 }
@@ -75,10 +78,14 @@ tasks.register('buildAndCollect', Copy) {
     group = 'build'
     dependsOn tasks.named('build')
     from(project.loomx.modJar.flatMap { it.archiveFile })
-    from(project.loomx.modSourcesJar.flatMap { it.archiveFile })
-    into(rootProject.layout.buildDirectory.dir("libs/${project.mod_version}"))
+    into(rootProject.layout.buildDirectory.dir("raw/fabric/${project.minecraft_version}"))
 }
 
 tasks.named('test') {
     enabled = false
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }

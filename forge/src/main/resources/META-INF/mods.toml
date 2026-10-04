@@ -1,0 +1,22 @@
+modLoader="javafml"
+loaderVersion="[${forge_major},)"
+license="MIT"
+[[mods]]
+modId="xpore"
+version="${mod_version}"
+displayName="Experience Ore"
+logoFile="assets/xpore/icon.png"
+authors="GalaxyNoxus"
+description="Experience ores with green crystals, orbital particles and configurable XP."
+[[dependencies.xpore]]
+modId="forge"
+mandatory=true
+versionRange="[${forge_version},${forge_next})"
+ordering="NONE"
+side="BOTH"
+[[dependencies.xpore]]
+modId="minecraft"
+mandatory=true
+versionRange="[${minecraft_version}]"
+ordering="NONE"
+side="BOTH"

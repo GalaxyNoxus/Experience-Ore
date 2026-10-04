@@ -9,6 +9,7 @@ import urllib.parse
 import urllib.request
 import uuid
 import zipfile
+from prepare_release import targets, read_jar, version_number, artifact_filename
 
 API = 'https://api.modrinth.com/v2'
 USER_AGENT = 'GalaxyNoxus/experience-ore (https://github.com/GalaxyNoxus/experience-ore)'
@@ -44,23 +45,34 @@ def request(path, token, body=None, content_type=None):
 
 
 def collect(version):
-    targets = json.loads(Path('targets.json').read_text())
-    if not targets or len(targets) != len(set(targets)):
-        raise RuntimeError('targets.json must contain a nonempty list of distinct Minecraft versions.')
-    prefix = properties('gradle.properties')['archives_base_name']
+    directory = Path(os.environ.get('RELEASE_DIR', 'release'))
+    manifest = json.loads((directory / 'release-manifest.json').read_text())
+    if manifest.get('mod_id') != 'xpore' or manifest.get('mod_version') != version:
+        raise RuntimeError('Release manifest does not match this project version.')
+    expected = {(t['loader'], t['minecraft']) for t in targets()}
+    covered = set()
     planned = []
-    for minecraft in targets:
-        number = f'{version}+mc{minecraft}'
-        matches = list(Path('artifacts').rglob(f'{prefix}-{number}.jar'))
-        if len(matches) != 1:
-            raise RuntimeError(f'Expected exactly one installable JAR for {minecraft}; found {len(matches)}.')
-        jar = matches[0]
-        with zipfile.ZipFile(jar) as archive:
-            metadata = json.loads(archive.read('fabric.mod.json'))
-        if (metadata.get('id') != 'xpore' or metadata.get('version') != version
-                or metadata.get('depends', {}).get('minecraft') != minecraft):
-            raise RuntimeError(f'Incorrect mod metadata in {jar.name}.')
-        planned.append((minecraft, number, jar, hashlib.sha512(jar.read_bytes()).hexdigest()))
+    prefix = properties('gradle.properties')['archives_base_name']
+    for item in manifest['artifacts']:
+        loader, versions = item['loader'], item['game_versions']
+        number = version_number(version, loader, versions)
+        if (loader not in ['fabric', 'forge'] or not versions or len(versions) != len(set(versions))
+                or item['version_number'] != number or item['file'] != artifact_filename(prefix, version, loader, versions)
+                or Path(item['file']).name != item['file']):
+            raise RuntimeError('Invalid release artifact.')
+        jar = directory / item['file']
+        digest = hashlib.sha512(jar.read_bytes()).hexdigest()
+        if digest != item['sha512']:
+            raise RuntimeError('Checksum mismatch: ' + jar.name)
+        read_jar(jar, loader, versions, version)
+        for mc in versions:
+            key = (loader, mc)
+            if key not in expected or key in covered:
+                raise RuntimeError('Duplicate or unsupported target: ' + str(key))
+            covered.add(key)
+        planned.append((loader, versions, number, jar, digest))
+    if covered != expected:
+        raise RuntimeError('Release is missing build targets.')
     return planned
 
 
@@ -91,35 +103,35 @@ def main():
         raise RuntimeError('The destination must be the configured Modrinth mod project.')
     project_id = project['id']
     supported = {item['version'] for item in request('/tag/game_version', token)}
-    missing = [mc for mc, _, _, _ in planned if mc not in supported]
+    missing = [mc for _, versions, _, _, _ in planned for mc in versions if mc not in supported]
     if missing:
         raise RuntimeError('Minecraft versions not recognized by Modrinth: ' + ', '.join(missing))
     fabric_id = request('/project/fabric-api', token)['id']
     existing = request(f'/project/{project_id}/version', token)
     pending = []
-    for minecraft, number, jar, digest in planned:
+    for loader, versions, number, jar, digest in planned:
         matches = [v for v in existing if v['version_number'] == number]
         if matches:
-            if (len(matches) != 1 or matches[0]['game_versions'] != [minecraft]
-                    or matches[0]['loaders'] != ['fabric']
+            if (len(matches) != 1 or set(matches[0]['game_versions']) != set(versions)
+                    or matches[0]['loaders'] != [loader]
                     or not any(f['hashes'].get('sha512') == digest for f in matches[0]['files'])):
                 raise RuntimeError(f'{number} already exists with different content. Use a new mod version.')
             print(f'Already uploaded, skipping: {number}')
         else:
-            pending.append((minecraft, number, jar))
+            pending.append((loader, versions, number, jar))
     notes = Path('release-notes') / f'{version}.md'
-    changelog = notes.read_text() if notes.exists() else f'Experience Ore {version} for Fabric.'
+    changelog = notes.read_text() if notes.exists() else f'Experience Ore {version} for Fabric and Forge.'
     channel = 'alpha' if '-alpha' in version else 'beta' if '-' in version else 'release'
-    for minecraft, number, jar in pending:
+    for loader, versions, number, jar in pending:
         metadata = {
-            'name': f'Experience Ore {version} — Minecraft {minecraft}',
+            'name': f'Experience Ore {version} — {loader.title()}',
             'version_number': number,
             'project_id': project_id,
             'changelog': changelog,
-            'dependencies': [{'project_id': fabric_id, 'dependency_type': 'required'}],
-            'game_versions': [minecraft],
+            'dependencies': [{'project_id': fabric_id, 'dependency_type': 'required'}] if loader == 'fabric' else [],
+            'game_versions': versions,
             'version_type': channel,
-            'loaders': ['fabric'],
+            'loaders': [loader],
             'featured': False,
             'status': 'listed',
             'file_parts': ['file'],
@@ -128,7 +140,7 @@ def main():
         body, content_type = multipart(metadata, jar)
         result = request('/version', token, body, content_type)
         print(f'Uploaded {number}: https://modrinth.com/mod/{slug}/version/{result["id"]}')
-    print(f'Complete: {len(planned)} Minecraft targets checked; {len(pending)} versions uploaded.')
+    print(f'Complete: {len(planned)} release JARs checked; {len(pending)} versions uploaded.')
     print(f'Project status: {project["status"]}. Project review/public visibility is managed in Modrinth.')
 
 

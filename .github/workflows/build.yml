@@ -11,11 +11,13 @@ jobs:
   targets:
     runs-on: ubuntu-latest
     outputs:
-      versions: ${{ steps.matrix.outputs.versions }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+      - name: Test release packaging
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
       - id: matrix
-        run: echo "versions=$(jq -c . targets.json)" >> "$GITHUB_OUTPUT"
+        run: python3 tools/build_matrix.py >> "$GITHUB_OUTPUT"
       - name: Validate release tag
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -27,26 +29,46 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 4
-      matrix:
-        minecraft: ${{ fromJSON(needs.targets.outputs.versions) }}
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: |
+            17
             21
             25
       - uses: gradle/actions/setup-gradle@v4
-      - name: Build Minecraft ${{ matrix.minecraft }}
+      - name: Build Fabric ${{ matrix.minecraft }}
+        if: matrix.loader == 'fabric'
         run: bash ./gradlew --no-daemon :${{ matrix.minecraft }}:buildAndCollect
+      - name: Build Forge ${{ matrix.minecraft }}
+        if: matrix.loader == 'forge'
+        run: bash ./forge/gradlew -p forge -PminecraftVersion=${{ matrix.minecraft }} --no-daemon buildAndCollect
       - uses: actions/upload-artifact@v4
         with:
-          name: xpore-mc${{ matrix.minecraft }}
-          path: build/libs/**/*.jar
+          name: xpore-raw-${{ matrix.loader }}-${{ matrix.minecraft }}
+          path: build/raw/${{ matrix.loader }}/${{ matrix.minecraft }}/*.jar
+          if-no-files-found: error
+  package:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: xpore-raw-*
+          path: artifacts
+      - name: Consolidate identical builds
+        run: python3 tools/prepare_release.py --input artifacts --output build/release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpore-release
+          path: build/release/*
           if-no-files-found: error
   publish:
-    needs: [targets, build]
+    needs: package
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'GalaxyNoxus/experience-ore'
     runs-on: ubuntu-latest
     concurrency:
@@ -56,9 +78,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          pattern: xpore-mc*
-          path: artifacts
-      - name: Publish Minecraft versions to Modrinth
+          name: xpore-release
+          path: release
+      - name: Publish grouped versions to Modrinth
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT: xp-ore
