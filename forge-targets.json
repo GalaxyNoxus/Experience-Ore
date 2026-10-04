@@ -3,7 +3,7 @@
     "minecraft": "1.20",
     "forge": "46.0.14",
     "java": 17,
-    "minimumForge": "46.0.14"
+    "minimumForge": "46.0.1"
   },
   {
     "minecraft": "1.20.1",
@@ -15,31 +15,31 @@
     "minecraft": "1.20.2",
     "forge": "48.1.0",
     "java": 17,
-    "minimumForge": "48.1.0"
+    "minimumForge": "48.0.39"
   },
   {
     "minecraft": "1.20.3",
     "forge": "49.0.2",
     "java": 17,
-    "minimumForge": "49.0.2"
+    "minimumForge": "49.0.1"
   },
   {
     "minecraft": "1.20.4",
     "forge": "49.2.8",
     "java": 17,
-    "minimumForge": "49.2.0"
+    "minimumForge": "49.1.37"
   },
   {
     "minecraft": "1.20.6",
     "forge": "50.2.10",
     "java": 21,
-    "minimumForge": "50.2.0"
+    "minimumForge": "50.1.51"
   },
   {
     "minecraft": "1.21",
     "forge": "51.0.33",
     "java": 21,
-    "minimumForge": "51.0.33"
+    "minimumForge": "51.0.22"
   },
   {
     "minecraft": "1.21.1",
@@ -57,7 +57,7 @@
     "minecraft": "1.21.4",
     "forge": "54.1.18",
     "java": 21,
-    "minimumForge": "54.1.14"
+    "minimumForge": "54.1.7"
   },
   {
     "minecraft": "1.21.5",
@@ -69,13 +69,13 @@
     "minecraft": "1.21.6",
     "forge": "56.0.9",
     "java": 21,
-    "minimumForge": "56.0.9"
+    "minimumForge": "56.0.0"
   },
   {
     "minecraft": "1.21.7",
     "forge": "57.0.3",
     "java": 21,
-    "minimumForge": "57.0.3"
+    "minimumForge": "57.0.0"
   },
   {
     "minecraft": "1.21.8",
@@ -87,7 +87,7 @@
     "minecraft": "1.21.9",
     "forge": "59.0.5",
     "java": 21,
-    "minimumForge": "59.0.5"
+    "minimumForge": "59.0.0"
   },
   {
     "minecraft": "1.21.10",
@@ -99,36 +99,36 @@
     "minecraft": "1.21.11",
     "forge": "61.2.1",
     "java": 21,
-    "minimumForge": "61.2.0"
+    "minimumForge": "61.1.8"
   },
   {
     "minecraft": "26.1",
     "forge": "62.0.9",
     "java": 25,
-    "minimumForge": "62.0.9"
+    "minimumForge": "62.0.0"
   },
   {
     "minecraft": "26.1.1",
     "forge": "63.0.2",
     "java": 25,
-    "minimumForge": "63.0.2"
+    "minimumForge": "63.0.0"
   },
   {
     "minecraft": "26.1.2",
     "forge": "64.1.3",
     "java": 25,
-    "minimumForge": "64.1.0"
+    "minimumForge": "64.0.8"
   },
   {
     "minecraft": "26.2",
     "forge": "65.1.3",
     "java": 25,
-    "minimumForge": "65.1.0"
+    "minimumForge": "65.0.3"
   },
   {
     "minecraft": "26.3",
     "forge": "66.0.9",
     "java": 25,
-    "minimumForge": "66.0.9"
+    "minimumForge": "66.0.0"
   }
 ]
