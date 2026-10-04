@@ -10,11 +10,19 @@ def targets = new groovy.json.JsonSlurper().parse(file('../forge-targets.json'))
 def requested = providers.gradleProperty('minecraftVersion').getOrElse('1.21.1')
 def target = targets.find { it.minecraft == requested }
 if (target == null) { throw new GradleException("Unsupported Forge target: ${requested}. See forge-targets.json.") }
+def minimumForge = target.minimumForge ?: target.forge
+def compileForge = providers.gradleProperty('forgeVersion').getOrElse(target.forge)
+if (!(compileForge in [target.forge, minimumForge])) {
+    throw new GradleException("forgeVersion must match the latest or minimum Forge configured for ${requested}.")
+}
 def forgeMajor = target.forge.tokenize('.')[0].toInteger()
+def minimumParts = minimumForge.tokenize('.').collect { it.toInteger() }
+if (minimumParts[0] != forgeMajor) { throw new GradleException('Forge minimum and latest must use the same major series.') }
+
 group = shared.maven_group
 version = shared.mod_version
 base { archivesName = shared.archives_base_name }
-layout.buildDirectory = file("build/${target.minecraft}")
+layout.buildDirectory = file("build/${target.minecraft}/${compileForge}")
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(target.java as int)
     withSourcesJar()
@@ -34,7 +42,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    implementation minecraft.dependency("net.minecraftforge:forge:${target.minecraft}-${target.forge}")
+    implementation minecraft.dependency("net.minecraftforge:forge:${target.minecraft}-${compileForge}")
     testImplementation 'com.google.code.gson:gson:2.10.1'
     testImplementation 'org.slf4j:slf4j-api:2.0.9'
 }
@@ -58,9 +66,9 @@ processResources {
     if (target.minecraft.startsWith('1.20')) {
         eachFile { details -> details.path = details.path.replace('/loot_table/', '/loot_tables/').replace('/tags/block/', '/tags/blocks/') }
     }
-    inputs.properties(mod_version: shared.mod_version, minecraft_version: target.minecraft, forge_version: target.forge, forge_major: forgeMajor)
+    inputs.properties(mod_version: shared.mod_version, minecraft_version: target.minecraft, forge_version: minimumForge, forge_major: forgeMajor)
     filesMatching('META-INF/mods.toml') {
-        expand mod_version: shared.mod_version, minecraft_version: target.minecraft, forge_version: target.forge, forge_major: forgeMajor, forge_next: forgeMajor + 1
+        expand mod_version: shared.mod_version, minecraft_version: target.minecraft, forge_version: minimumForge, forge_major: forgeMajor, forge_next: forgeMajor + 1
     }
     doLast {
         ['experience_ore', 'deepslate_experience_ore'].each { name ->
@@ -80,7 +88,7 @@ tasks.withType(JavaCompile).configureEach {
     options.release = target.java as int
 }
 tasks.withType(AbstractArchiveTask).configureEach {
-    archiveVersion = "${shared.mod_version}+mc${target.minecraft}-forge"
+    archiveVersion = "${shared.mod_version}-forge-mc${target.minecraft}"
     preserveFileTimestamps = false
     reproducibleFileOrder = true
 }
@@ -91,7 +99,7 @@ if (target.java == 17) {
     installableJar = renamer.classes(tasks.named('jar', Jar)) {
         map.from minecraft.dependency.toSrgFile
         archiveClassifier = ''
-        output = layout.buildDirectory.file("production/${shared.archives_base_name}-${shared.mod_version}+mc${target.minecraft}-forge.jar")
+        output = layout.buildDirectory.file("production/${shared.archives_base_name}-${shared.mod_version}-forge-mc${target.minecraft}.jar")
     }
     tasks.named('build') { dependsOn installableJar }
 }
@@ -107,5 +115,5 @@ tasks.register('buildAndCollect', Copy) {
     group = 'build'
     dependsOn tasks.named('build'), installableJar
     from(installableJar.flatMap { target.java == 17 ? it.output : it.archiveFile })
-    into(file("../build/raw/forge/${target.minecraft}"))
+    into(file(compileForge == target.forge ? "../build/raw/forge/${target.minecraft}" : "../build/validation/forge/${target.minecraft}"))
 }

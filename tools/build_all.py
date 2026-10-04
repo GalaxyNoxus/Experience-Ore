@@ -2,6 +2,7 @@ import argparse
 import os
 from pathlib import Path
 import subprocess
+from build_forge import build_forge
 from prepare_release import prepare, targets
 
 
@@ -19,12 +20,12 @@ def main():
         parser.error('No matching target. Forge is unavailable for Minecraft 1.20.5 and 1.21.2.')
     for target in selected:
         loader, minecraft = target['loader'], target['minecraft']
-        wrapper = root / ('forge' if loader == 'forge' else '') / ('gradlew.bat' if os.name == 'nt' else 'gradlew')
-        command = [str(wrapper)] if os.name == 'nt' else ['bash', str(wrapper)]
         if loader == 'forge':
-            command += ['-p', str(root / 'forge'), f'-PminecraftVersion={minecraft}', 'buildAndCollect']
-        else:
-            command += [f':{minecraft}:buildAndCollect']
+            build_forge(minecraft)
+            continue
+        wrapper = root / ('gradlew.bat' if os.name == 'nt' else 'gradlew')
+        command = [str(wrapper)] if os.name == 'nt' else ['bash', str(wrapper)]
+        command += [f':{minecraft}:buildAndCollect']
         print(f'Building {loader} {minecraft}', flush=True)
         subprocess.run(command, check=True)
     if args.loader == 'both' and args.minecraft is None:

@@ -19,6 +19,12 @@ def targets():
     keys = [(t['loader'], t['minecraft']) for t in result]
     if not keys or len(keys) != len(set(keys)):
         raise ValueError('Targets must be nonempty and unique.')
+    for target in result:
+        if target['loader'] == 'forge':
+            latest = tuple(map(int, target['forge'].split('.')))
+            minimum = tuple(map(int, target.get('minimumForge', target['forge']).split('.')))
+            if minimum[0] != latest[0] or minimum > latest:
+                raise ValueError('Invalid minimum Forge version: ' + target['minecraft'])
     return result
 
 
@@ -121,19 +127,29 @@ def merge_metadata(records, loader):
     return 'META-INF/mods.toml', toml_metadata(metadata)
 
 
-def version_number(version, loader, versions):
+def minecraft_label(versions):
+    if not versions or len(versions) != len(set(versions)):
+        raise ValueError('Minecraft versions must be nonempty and unique.')
     if len(versions) == 1:
-        number = f'{version}+mc{versions[0]}-{loader}'
-    else:
-        group = hashlib.sha256(','.join(versions).encode()).hexdigest()[:10]
-        number = f'{version}+{loader}.g{group}'
+        return versions[0]
+    parts = [tuple(map(int, mc.split('.'))) for mc in versions]
+    normalized = [p + (0,) if len(p) == 2 else p for p in parts]
+    if all(len(p) == 3 and p[:2] == normalized[0][:2] for p in normalized):
+        patches = [p[2] for p in normalized]
+        if patches == list(range(patches[0], patches[-1] + 1)):
+            return versions[0] + '-' + versions[-1]
+    return '_'.join(versions)
+
+
+def version_number(version, loader, versions):
+    number = f'{version}-{loader}-{minecraft_label(versions)}'
     if len(number) > 32:
         raise ValueError('Modrinth version number exceeds 32 characters: ' + number)
     return number
 
 
 def artifact_filename(prefix, version, loader, versions):
-    return f'{prefix}-{version}+mc{"_".join(versions)}-{loader}.jar'
+    return f'{prefix}-{version}-{loader}-mc{minecraft_label(versions)}.jar'
 
 
 def prepare(input_dir, output_dir):
@@ -142,8 +158,7 @@ def prepare(input_dir, output_dir):
     buckets = defaultdict(list)
     for target in targets():
         loader, mc = target['loader'], target['minecraft']
-        suffix = '-forge' if loader == 'forge' else ''
-        filename = f'{prefix}-{version}+mc{mc}{suffix}.jar'
+        filename = artifact_filename(prefix, version, loader, [mc])
         found = list(input_dir.rglob(filename))
         if len(found) != 1:
             raise ValueError(f'Expected exactly one {filename}; found {len(found)}.')
@@ -167,6 +182,7 @@ def prepare(input_dir, output_dir):
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = 0o100644 << 16
                 archive.writestr(info, content)
+        read_jar(output_dir / filename, loader, versions, version)
         planned.append({'loader': loader, 'game_versions': versions, 'version_number': number, 'file': filename,
             'sha512': hashlib.sha512((output_dir / filename).read_bytes()).hexdigest(), 'payload_sha256': fingerprint,
             'sources': {r['minecraft']: r['source_sha512'] for r in records}})

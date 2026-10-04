@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 import prepare_release as package
+from build_forge import compare_outputs
 import publish_modrinth as publish
 
 
@@ -31,8 +32,7 @@ class ReleaseTests(unittest.TestCase):
 
     def jar(self, target, code=b'same-code', asset=b'same-asset'):
         mc, loader = target['minecraft'], target['loader']
-        suffix = '-forge' if loader == 'forge' else ''
-        path = Path(f'raw/{loader}/{mc}/xp-ore-1.0.0+mc{mc}{suffix}.jar')
+        path = Path('raw') / loader / mc / package.artifact_filename('xp-ore', '1.0.0', loader, [mc])
         path.parent.mkdir(parents=True, exist_ok=True)
         if loader == 'fabric':
             name = 'fabric.mod.json'
@@ -66,7 +66,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(len(publish.collect('1.0.0')), 2)
 
     def test_missing_forge_pack_metadata_blocks_packaging(self):
-        path = next(Path('raw').rglob('*-forge.jar'))
+        path = next(Path('raw').rglob('*-forge-mc*.jar'))
         with zipfile.ZipFile(path) as archive:
             entries = {name: archive.read(name) for name in archive.namelist() if name != 'pack.mcmeta'}
         with zipfile.ZipFile(path, 'w') as archive:
@@ -84,7 +84,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(len(self.prepare()['artifacts']), 3)
 
     def test_missing_target_blocks_packaging(self):
-        next(Path('raw').rglob('*-forge.jar')).unlink()
+        next(Path('raw').rglob('*-forge-mc*.jar')).unlink()
         with self.assertRaises(ValueError):
             self.prepare()
         self.assertFalse(Path('release').exists())
@@ -103,6 +103,80 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(number, package.version_number('1.0.0', 'fabric', versions))
         self.assertNotEqual(number, package.version_number('1.0.0', 'forge', versions))
         self.assertNotEqual(number, package.version_number('1.0.0', 'fabric', versions[:-1]))
+
+    def test_readable_release_identifiers(self):
+        self.assertEqual(package.version_number('1.0.0', 'forge', ['1.20', '1.20.1']), '1.0.0-forge-1.20-1.20.1')
+        self.assertEqual(package.artifact_filename('experience-ore', '1.0.0', 'forge', ['1.20', '1.20.1']),
+                         'experience-ore-1.0.0-forge-mc1.20-1.20.1.jar')
+        self.assertEqual(package.version_number('1.0.0', 'fabric', ['1.21.9', '1.21.10']), '1.0.0-fabric-1.21.9-1.21.10')
+
+    def test_gaps_are_not_advertised_as_ranges(self):
+        self.assertEqual(package.minecraft_label(['1.20', '1.20.2']), '1.20_1.20.2')
+
+    def test_release_text_is_loader_specific(self):
+        for loader, other in [('forge', 'Fabric'), ('fabric', 'Forge')]:
+            name, changelog = publish.release_text('1.0.0', loader, ['1.20', '1.20.1'])
+            self.assertIn(loader.title(), name)
+            self.assertIn('1.20-1.20.1', name)
+            self.assertNotIn(other, changelog)
+            self.assertLessEqual(len(name), 64)
+        self.assertIn('47.4.26', publish.release_text('1.0.0', 'forge', ['1.20.1'])[1])
+
+    def test_all_46_individual_targets_have_single_version_names(self):
+        for filename in ['targets.json', 'forge-targets.json']:
+            Path(filename).write_text((self.previous / filename).read_text())
+        configured = package.targets()
+        self.assertEqual(len(configured), 46)
+        for target in configured:
+            self.jar(target, code=f"{target['loader']}:{target['minecraft']}".encode())
+        result = self.prepare()
+        self.assertEqual(len(result['artifacts']), 46)
+        self.assertEqual(len(publish.collect('1.0.0')), 46)
+        for item in result['artifacts']:
+            self.assertEqual(len(item['game_versions']), 1)
+            mc = item['game_versions'][0]
+            self.assertEqual(item['file'], f"xp-ore-1.0.0-{item['loader']}-mc{mc}.jar")
+            package.read_jar(Path('release') / item['file'], item['loader'], [mc], '1.0.0')
+
+    def test_single_version_cannot_claim_a_group_in_manifest(self):
+        for target in package.targets():
+            self.jar(target, code=f"{target['loader']}:{target['minecraft']}".encode())
+        manifest = self.prepare()
+        item = manifest['artifacts'][0]
+        item['game_versions'] = ['1.20', '1.20.1']
+        item['version_number'] = package.version_number('1.0.0', item['loader'], item['game_versions'])
+        renamed = package.artifact_filename('xp-ore', '1.0.0', item['loader'], item['game_versions'])
+        (Path('release') / item['file']).rename(Path('release') / renamed)
+        item['file'] = renamed
+        Path('release/release-manifest.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, 'metadata'):
+            publish.collect('1.0.0')
+
+    def test_baseline_comparison_rejects_different_output(self):
+        target = next(t for t in package.targets() if t['loader'] == 'forge')
+        latest = self.jar(target)
+        minimum = Path('minimum.jar')
+        minimum.write_bytes(latest.read_bytes())
+        compare_outputs(latest, minimum, target['minecraft'], '1.0.0')
+        self.jar(target, code=b'new-api-dependent-output')
+        with self.assertRaisesRegex(RuntimeError, 'builds differ'):
+            compare_outputs(latest, minimum, target['minecraft'], '1.0.0')
+
+    def test_minimum_forge_is_used_in_release_notes(self):
+        data = json.loads(Path('forge-targets.json').read_text())
+        data[1]['minimumForge'] = '47.4.10'
+        Path('forge-targets.json').write_text(json.dumps(data))
+        text = publish.release_text('1.0.0', 'forge', ['1.20.1'])[1]
+        self.assertIn('47.4.10', text)
+        self.assertNotIn('47.4.26', text)
+
+    def test_minimum_must_be_same_major_and_not_above_latest(self):
+        for minimum in ['46.0.14', '47.4.27']:
+            data = json.loads(Path('forge-targets.json').read_text())
+            data[1]['minimumForge'] = minimum
+            Path('forge-targets.json').write_text(json.dumps(data))
+            with self.assertRaisesRegex(ValueError, 'minimum Forge'):
+                package.targets()
 
     def test_tag_must_match(self):
         with patch.dict(os.environ, {'RELEASE_TAG': 'v2.0.0'}):

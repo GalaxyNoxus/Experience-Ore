@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 import uuid
 import zipfile
-from prepare_release import targets, read_jar, version_number, artifact_filename
+from prepare_release import targets, read_jar, version_number, artifact_filename, minecraft_label
 
 API = 'https://api.modrinth.com/v2'
 USER_AGENT = 'GalaxyNoxus/experience-ore (https://github.com/GalaxyNoxus/experience-ore)'
@@ -88,6 +88,32 @@ def multipart(metadata, jar):
     return b''.join(parts), f'multipart/form-data; boundary={boundary}'
 
 
+def release_text(version, loader, versions):
+    label = minecraft_label(versions).replace('_', ', ')
+    name = f'Experience Ore {version} | {loader.title()} | {label}'
+    if len(name) > 64:
+        name = f'Experience Ore {version} | {loader.title()}'
+    lines = [f'## Experience Ore {version}', '', f'**Loader:** {loader.title()}',
+             f'**Minecraft:** {", ".join(versions)}', '',
+             '- Stone and deepslate experience ores with green crystal shards.',
+             '- Configurable XP rewards with Fortune and Silk Touch support.',
+             '- Three orbiting particles with trails and smooth fading.',
+             '- Crystal emission textures for compatible shader packs.', '']
+    if loader == 'fabric':
+        lines.append('Requires Fabric Loader and Fabric API for your Minecraft version.')
+    else:
+        lines.append('Requires Minecraft Forge for your Minecraft version.')
+        for target in targets():
+            if target['loader'] == 'forge' and target['minecraft'] in versions:
+                minimum = target.get('minimumForge', target['forge'])
+                major = minimum.split('.')[0]
+                lines.append(f"- Minecraft {target['minecraft']}: Forge {minimum} or newer in the {major}.x series.")
+    notes = Path('release-notes') / f'{version}-{loader}.md'
+    if notes.exists():
+        lines.extend(['', notes.read_text().strip()])
+    return name, '\n'.join(lines) + '\n'
+
+
 def main():
     version = release_version()
     if '--validate-tag' in sys.argv:
@@ -119,12 +145,11 @@ def main():
             print(f'Already uploaded, skipping: {number}')
         else:
             pending.append((loader, versions, number, jar))
-    notes = Path('release-notes') / f'{version}.md'
-    changelog = notes.read_text() if notes.exists() else f'Experience Ore {version} for Fabric and Forge.'
     channel = 'alpha' if '-alpha' in version else 'beta' if '-' in version else 'release'
     for loader, versions, number, jar in pending:
+        name, changelog = release_text(version, loader, versions)
         metadata = {
-            'name': f'Experience Ore {version} — {loader.title()}',
+            'name': name,
             'version_number': number,
             'project_id': project_id,
             'changelog': changelog,
