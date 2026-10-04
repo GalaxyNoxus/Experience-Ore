@@ -132,13 +132,8 @@ def minecraft_label(versions):
         raise ValueError('Minecraft versions must be nonempty and unique.')
     if len(versions) == 1:
         return versions[0]
-    parts = [tuple(map(int, mc.split('.'))) for mc in versions]
-    normalized = [p + (0,) if len(p) == 2 else p for p in parts]
-    if all(len(p) == 3 and p[:2] == normalized[0][:2] for p in normalized):
-        patches = [p[2] for p in normalized]
-        if patches == list(range(patches[0], patches[-1] + 1)):
-            return versions[0] + '-' + versions[-1]
-    return '_'.join(versions)
+    return versions[0] + '_' + versions[-1]
+
 
 
 def version_number(version, loader, versions):

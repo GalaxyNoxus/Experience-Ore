@@ -105,19 +105,19 @@ class ReleaseTests(unittest.TestCase):
         self.assertNotEqual(number, package.version_number('1.0.0', 'fabric', versions[:-1]))
 
     def test_readable_release_identifiers(self):
-        self.assertEqual(package.version_number('1.0.0', 'forge', ['1.20', '1.20.1']), '1.0.0-forge-1.20-1.20.1')
+        self.assertEqual(package.version_number('1.0.0', 'forge', ['1.20', '1.20.1']), '1.0.0-forge-1.20_1.20.1')
         self.assertEqual(package.artifact_filename('experience-ore', '1.0.0', 'forge', ['1.20', '1.20.1']),
-                         'experience-ore-1.0.0-forge-mc1.20-1.20.1.jar')
-        self.assertEqual(package.version_number('1.0.0', 'fabric', ['1.21.9', '1.21.10']), '1.0.0-fabric-1.21.9-1.21.10')
+                         'experience-ore-1.0.0-forge-mc1.20_1.20.1.jar')
+        self.assertEqual(package.version_number('1.0.0', 'fabric', ['1.21.9', '1.21.10']), '1.0.0-fabric-1.21.9_1.21.10')
 
-    def test_gaps_are_not_advertised_as_ranges(self):
+    def test_label_uses_group_endpoints(self):
         self.assertEqual(package.minecraft_label(['1.20', '1.20.2']), '1.20_1.20.2')
 
     def test_release_text_is_loader_specific(self):
         for loader, other in [('forge', 'Fabric'), ('fabric', 'Forge')]:
             name, changelog = publish.release_text('1.0.0', loader, ['1.20', '1.20.1'])
             self.assertIn(loader.title(), name)
-            self.assertIn('1.20-1.20.1', name)
+            self.assertIn('1.20_1.20.1', name)
             self.assertNotIn(other, changelog)
             self.assertLessEqual(len(name), 64)
         self.assertIn('47.4.26', publish.release_text('1.0.0', 'forge', ['1.20.1'])[1])
@@ -177,6 +177,21 @@ class ReleaseTests(unittest.TestCase):
             Path('forge-targets.json').write_text(json.dumps(data))
             with self.assertRaisesRegex(ValueError, 'minimum Forge'):
                 package.targets()
+
+    def test_26_group_fits_modrinth_limit_and_keeps_all_versions(self):
+        versions = ['26.1', '26.1.1', '26.1.2', '26.2']
+        self.assertEqual(package.minecraft_label(versions), '26.1_26.2')
+        for loader in ['fabric', 'forge']:
+            number = package.version_number('1.0.0', loader, versions)
+            self.assertEqual(number, f'1.0.0-{loader}-26.1_26.2')
+            self.assertLessEqual(len(number), 32)
+        metadata = {'depends': {'minecraft': '26.1', 'fabric-api': '>=1.0.0+26.1'}}
+        records = [{'minecraft': mc, 'metadata': metadata} for mc in versions]
+        _, data = package.merge_metadata(records, 'fabric')
+        self.assertEqual(json.loads(data)['depends']['minecraft'], versions)
+        title, changelog = publish.release_text('1.0.0', 'fabric', versions)
+        self.assertIn('26.1_26.2', title)
+        self.assertIn(', '.join(versions), changelog)
 
     def test_tag_must_match(self):
         with patch.dict(os.environ, {'RELEASE_TAG': 'v2.0.0'}):

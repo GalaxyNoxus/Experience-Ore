@@ -89,7 +89,7 @@ def multipart(metadata, jar):
 
 
 def release_text(version, loader, versions):
-    label = minecraft_label(versions).replace('_', ', ')
+    label = minecraft_label(versions)
     name = f'Experience Ore {version} | {loader.title()} | {label}'
     if len(name) > 64:
         name = f'Experience Ore {version} | {loader.title()}'
