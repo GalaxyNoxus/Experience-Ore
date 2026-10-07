@@ -17,8 +17,9 @@ public final class ConfigCheck {
             Path defaults = root.resolve("defaults");
             XpOreConfig config = XpOreConfig.load(defaults);
             check(Files.exists(defaults.resolve("xpore.json")), "Cria arquivo ausente");
-            check(config.minXpDrop() == 3 && config.maxXpDrop() == 8, "Defaults de XP");
-            check(config.oreGenerationRarity() == 2, "Default de raridade");
+            check(config.minXpDrop() == 8 && config.maxXpDrop() == 13, "Defaults de XP");
+            check(config.oreGenerationRarity() == 6, "Default de raridade");
+            check(config.caveSurfaceRarity() == 16, "Default de raridade nas cavernas");
             check(config.enableDeepslateVariant(), "Ardósia habilitada por padrão");
             check(config.applyFortune(8, 0) == 8, "Sem Fortuna preserva base");
             check(config.applyFortune(3, 1) == 4, "Fortuna arredonda para baixo");
@@ -50,13 +51,13 @@ public final class ConfigCheck {
             String invalid = "{\"minXpDrop\":null}";
             Files.writeString(file, invalid);
             config = XpOreConfig.load(defaults);
-            check(config.minXpDrop() == 3, "Arquivo inválido usa defaults");
+            check(config.minXpDrop() == 8, "Arquivo inválido usa defaults");
             try (var paths = Files.list(defaults)) {
                 Path backup = paths.filter(p -> p.toString().endsWith(".bak")).findFirst().orElseThrow();
                 check(Files.readString(backup).equals(invalid), "Backup preserva original inválido");
             }
             check(JsonParser.parseString(Files.readString(file)).getAsJsonObject()
-                    .get("minXpDrop").getAsInt() == 3, "Defaults restaurados no disco");
+                    .get("minXpDrop").getAsInt() == 8, "Defaults restaurados no disco");
             System.out.println("ConfigCheck: " + assertions + " verificações passaram.");
         } finally {
             try (var paths = Files.walk(root)) {

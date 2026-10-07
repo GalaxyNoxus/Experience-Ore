@@ -9,5 +9,6 @@ import net.minecraftforge.registries.RegistryObject;
 public final class ModWorldGeneration {
     public static final DeferredRegister<PlacementModifierType<?>> PLACEMENT_TYPES = DeferredRegister.create(Registries.PLACEMENT_MODIFIER_TYPE, XpOreMod.MOD_ID);
     public static final RegistryObject<PlacementModifierType<ConfigRarityPlacementModifier>> CONFIG_RARITY = PLACEMENT_TYPES.register("config_rarity", () -> () -> ConfigRarityPlacementModifier.CODEC);
+    public static final RegistryObject<PlacementModifierType<CaveSurfacePlacementModifier>> CAVE_SURFACE = PLACEMENT_TYPES.register("cave_surface", () -> () -> CaveSurfacePlacementModifier.CODEC);
     private ModWorldGeneration() { }
 }

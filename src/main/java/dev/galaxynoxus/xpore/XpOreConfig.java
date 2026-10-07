@@ -22,11 +22,12 @@ public final class XpOreConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static XpOreConfig instance = new XpOreConfig();
 
-    private int minXpDrop = 3;
-    private int maxXpDrop = 8;
+    private int minXpDrop = 8;
+    private int maxXpDrop = 13;
     private double fortuneMultiplier = 1.5;
     
-    private int oreGenerationRarity = 2;
+    private int oreGenerationRarity = 6;
+    private int caveSurfaceRarity = 16;
     private boolean enableDeepslateVariant = true;
 
     public static XpOreConfig get() { return instance; }
@@ -49,6 +50,7 @@ public final class XpOreConfig {
                     throw new IllegalArgumentException("A raiz de xpore.json precisa ser um objeto JSON.");
                 }
                 contents = parsed.getAsJsonObject();
+                config.caveSurfaceRarity = readInt(contents, "caveSurfaceRarity", config.caveSurfaceRarity);
                 config.minXpDrop = readInt(contents, "minXpDrop", config.minXpDrop);
                 config.maxXpDrop = readInt(contents, "maxXpDrop", config.maxXpDrop);
                 config.oreGenerationRarity = readInt(contents, "oreGenerationRarity", config.oreGenerationRarity);
@@ -108,13 +110,15 @@ public final class XpOreConfig {
     }
     private boolean normalize() {
         int oldMin = minXpDrop, oldMax = maxXpDrop, oldRarity = oreGenerationRarity;
+        int oldCaveRarity = caveSurfaceRarity;
+        caveSurfaceRarity = Math.max(0, Math.min(10_000, caveSurfaceRarity));
         double oldMultiplier = fortuneMultiplier;
         minXpDrop = Math.max(0, Math.min(10_000, minXpDrop));
         maxXpDrop = Math.max(minXpDrop, Math.min(10_000, maxXpDrop));
         oreGenerationRarity = Math.max(1, Math.min(10_000, oreGenerationRarity));
         fortuneMultiplier = Double.isFinite(fortuneMultiplier)
                 ? Math.max(1.0, Math.min(10.0, fortuneMultiplier)) : 1.5;
-        boolean changed = oldMin != minXpDrop || oldMax != maxXpDrop
+        boolean changed = oldCaveRarity != caveSurfaceRarity || oldMin != minXpDrop || oldMax != maxXpDrop
                 || oldRarity != oreGenerationRarity || oldMultiplier != fortuneMultiplier;
         if (changed) { LOGGER.warn("Valores fora dos limites de xpore.json foram corrigidos."); }
         return changed;
@@ -129,6 +133,7 @@ public final class XpOreConfig {
     }
     public int minXpDrop() { return minXpDrop; }
     public int maxXpDrop() { return maxXpDrop; }
+    public int caveSurfaceRarity() { return caveSurfaceRarity; }
     public int oreGenerationRarity() { return oreGenerationRarity; }
     public boolean enableDeepslateVariant() { return enableDeepslateVariant; }
 

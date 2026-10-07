@@ -1,7 +1,8 @@
 {
-  "minXpDrop": 3,
-  "maxXpDrop": 8,
+  "minXpDrop": 8,
+  "maxXpDrop": 13,
   "fortuneMultiplier": 1.5,
-  "oreGenerationRarity": 2,
-  "enableDeepslateVariant": true
+  "oreGenerationRarity": 6,
+  "enableDeepslateVariant": true,
+  "caveSurfaceRarity": 16
 }
