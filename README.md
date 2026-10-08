@@ -7,7 +7,7 @@ A Fabric and Forge mod that adds experience ores with configurable XP rewards.
 - Emissive crystal textures for compatible shaders.
 - Configurable XP drops and world generation.
 
-The ores generate in ordinary veins. They do not grow crystals or use a geode system.
+The ores generate in ordinary veins, with additional generation beside air on cave surfaces. They do not grow crystals or use a geode system.
 
 ## Mining
 
@@ -15,7 +15,7 @@ An **iron pickaxe or better** is required.
 
 | Enchantment | Result |
 | --- | --- |
-| None | Drops 3–8 XP by default, without an item |
+| None | Drops 8–13 XP by default, without an item |
 | Fortune | Increases the XP reward |
 | Silk Touch | Drops the ore block instead of XP |
 
@@ -27,15 +27,16 @@ XP = floor(base XP × fortuneMultiplier ^ Fortune level)
 
 ## Configuration
 
-The mod creates `config/xpore.json` on its first launch:
+The mod creates `config/xpore.json` on its first launch. Existing configuration values are preserved when updating; change them manually to use the defaults below. Restart the game or server after editing. Generation changes only affect newly generated chunks.
 
 ```json
 {
-  "minXpDrop": 3,
-  "maxXpDrop": 8,
+  "minXpDrop": 8,
+  "maxXpDrop": 13,
   "fortuneMultiplier": 1.5,
-  "oreGenerationRarity": 2,
-  "enableDeepslateVariant": true
+  "oreGenerationRarity": 6,
+  "enableDeepslateVariant": true,
+  "caveSurfaceRarity": 16
 }
 ```
 
@@ -44,8 +45,9 @@ The mod creates `config/xpore.json` on its first launch:
 | `minXpDrop` | Minimum base XP reward |
 | `maxXpDrop` | Maximum base XP reward |
 | `fortuneMultiplier` | XP multiplier applied for each Fortune level |
-| `oreGenerationRarity` | Higher values make generation rarer |
-| `enableDeepslateVariant` | Enables natural generation of the deepslate variant |
+| `oreGenerationRarity` | Normal vein generation has a 1-in-N chance per attempt; higher values make veins rarer |
+| `enableDeepslateVariant` | Enables natural generation of the deepslate variant, including cave surfaces |
+| `caveSurfaceRarity` | Extra cave surface generation has a 1-in-N chance per eligible position; higher values make exposed ores rarer, and 0 disables this extra generation |
 
 ## Minecraft support
 
